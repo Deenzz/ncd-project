@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Malaysian NCD Triple-Target Master - CPG Clinical Suite</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.1/dist/umd/lucide.min.js"></script>
+  <!-- jsPDF CDN for Medical Consultation Sheet Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ncd: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#059669',
+              600: '#047857',
+              700: '#065f46',
+              800: '#064e3b',
+              900: '#022c22',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- ==========================================
+       PROTECTIONS, STYLING & MOBILE ERGONOMICS
+       ========================================== -->
+  <style>
+    /* Prevent UI text copying while preserving input fields */
+    body {
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+    }
+    input, textarea, select {
+      -webkit-user-select: auto !important;
+      -moz-user-select: auto !important;
+      -ms-user-select: auto !important;
+      user-select: auto !important;
+    }
+
+    .flow-node { transition: all 0.2s ease-in-out; }
+    .flow-node:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    .badge-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+
+    /* Dark Mode Palette */
+    html.dark { color-scheme: dark; }
+    html.dark body { background: #0a0e14; color: #e2e8f0; }
+    html.dark .bg-white { background-color: #121824; }
+    html.dark .bg-slate-50 { background-color: #172030; }
+    html.dark .bg-slate-100 { background-color: #1f2b40; }
+    html.dark .bg-emerald-50 { background-color: #0b291d; }
+    html.dark .bg-rose-50 { background-color: #35141c; }
+    html.dark .bg-amber-50 { background-color: #33240e; }
+    html.dark .bg-sky-50 { background-color: #0c2336; }
+    html.dark .text-slate-900 { color: #f8fafc; }
+    html.dark .text-slate-800 { color: #e2e8f0; }
+    html.dark .text-slate-700 { color: #cbd5e1; }
+    html.dark .text-slate-600 { color: #94a3b8; }
+    html.dark .border-slate-200, html.dark .border-slate-100 { border-color: #27354d; }
+    html.dark input, html.dark select { background-color: #172030; color: #f1f5f9; border-color: #374868; }
+    html.dark nav .bg-white { background-color: #27354d; color: #f8fafc; }
+
+    :root {
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    @media (max-width: 640px) {
+      .mobile-center-wrap {
+        width: 100%;
+        max-width: 34rem;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      header > div {
+        display: flex;
+        flex-direction: column;
+        align-items: center !important;
+        text-align: center;
+        padding-top: 14px;
+        padding-bottom: 14px;
+      }
+      #mobile-nav-bar {
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        z-index: 60;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+        border-top: 1px solid rgba(148, 163, 184, 0.25);
+      }
+      #mobile-nav-bar button {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 6px 2px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      main {
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-bottom: 9.5rem !important;
+      }
+      main input:not([type=checkbox]), main select {
+        font-size: 16px !important;
+        min-height: 44px;
+      }
+      main input[type=checkbox] {
+        width: 22px; height: 22px; flex-shrink: 0;
+      }
+      main .text-xs { font-size: 13px; line-height: 1.45; }
+    }
+
+    @media print {
+      header, nav, #mobile-nav-bar, footer, .no-print, #m-result-bar { display: none !important; }
+      html.dark body, body { background: #fff !important; color: #000 !important; }
+    }
+  </style>
+
+  <!-- ==========================================
+       ANTI-TAMPER SCRIPT
+       ========================================== -->
+  <script>
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => {
+      if (e.key === 'F12' || e.keyCode === 123) e.preventDefault();
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (ctrl && (e.key === 'u' || e.key === 'U' || e.keyCode === 85)) e.preventDefault();
+      if (ctrl && e.shiftKey && (e.key === 'i' || e.key === 'I' || e.keyCode === 73)) e.preventDefault();
+      if (ctrl && e.shiftKey && (e.key === 'j' || e.key === 'J' || e.keyCode === 74)) e.preventDefault();
+      if (ctrl && e.shiftKey && (e.key === 'c' || e.key === 'C' || e.keyCode === 67)) e.preventDefault();
+      if (ctrl && (e.key === 's' || e.key === 'S' || e.keyCode === 83)) e.preventDefault();
+    });
+    document.addEventListener('dragstart', e => { if (e.target.tagName === 'IMG') e.preventDefault(); });
+    setInterval(() => { (function(){ return false; }['constructor']('debugger')()); }, 100);
+
+    (function(){
+      var t; try { t = localStorage.getItem('ncd-theme'); } catch(e){}
+      if(!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.classList.toggle('dark', t === 'dark');
+    })();
+  </script>
+</head>
+
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased selection:bg-emerald-600 selection:text-white">
+
+  <!-- NOSCRIPT FALLBACK -->
+  <noscript>
+    <div class="min-h-screen flex items-center justify-center p-6 text-center">
+      <div class="bg-white border border-rose-300 rounded-2xl p-8 max-w-md shadow-xl">
+        <h1 class="text-lg font-bold text-slate-900 mb-2">JavaScript Required</h1>
+        <p class="text-xs text-slate-600 leading-relaxed">
+          The Malaysian NCD Triple-Target Master requires JavaScript to run CPG risk tiering algorithms. Please enable JavaScript in your browser settings.
+        </p>
+      </div>
+    </div>
+  </noscript>
+
+  <div id="app-root" class="flex-1 flex flex-col">
+    <!-- TOP CLINICAL HEADER -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm transition-colors duration-200">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+        
+        <!-- BRANDING -->
+        <div class="flex flex-col sm:flex-row items-center gap-3">
+          <div class="bg-emerald-700 text-white p-2.5 rounded-xl shadow-md flex items-center justify-center">
+            <i data-lucide="layers" class="w-6 h-6"></i>
+          </div>
+          <div class="flex flex-col items-center sm:items-start">
+            <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+              <h1 class="text-xl font-extrabold tracking-tight text-slate-900">NCD Triple-Target Master</h1>
+              <span class="bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-200">MOH CPGs 2026</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">T2DM (6th Ed) • Hypertension (6th Ed, 2026) • Dyslipidemia (6th Ed, 2023)</p>
+          </div>
+        </div>
+        
+        <!-- ACTIONS -->
+        <div class="flex items-center justify-center gap-2 no-print w-full sm:w-auto">
+          <button id="theme-btn" onclick="toggleTheme()" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl border border-slate-200 bg-white dark:bg-slate-800 text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition">
+            <i data-lucide="moon" class="w-4 h-4"></i> <span>Dark</span>
+          </button>
+          <button onclick="saveNcdPdf()" class="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-emerald-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-emerald-800 shadow-sm active:scale-95 transition">
+            <i data-lucide="file-down" class="w-4 h-4"></i> <span>Export Consult Sheet</span>
+          </button>
+        </div>
+
+        <!-- DESKTOP TOP NAV -->
+        <nav class="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs sm:text-sm font-medium">
+          <button onclick="switchTab('calculator')" id="tab-btn-calculator-d" class="px-3 py-1.5 rounded-lg bg-white shadow-sm text-slate-900 flex items-center gap-1.5 transition">
+            <i data-lucide="sliders" class="w-4 h-4 text-emerald-600"></i> Triple-Target Engine
+          </button>
+          <button onclick="switchTab('pathway')" id="tab-btn-pathway-d" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition">
+            <i data-lucide="git-branch" class="w-4 h-4 text-blue-600"></i> CPG Pathway
+          </button>
+          <button onclick="switchTab('investigations')" id="tab-btn-investigations-d" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition">
+            <i data-lucide="flask-conical" class="w-4 h-4 text-sky-600"></i> Labs & Red Flags
+          </button>
+          <button onclick="switchTab('ecg')" id="tab-btn-ecg-d" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition">
+            <i data-lucide="activity" class="w-4 h-4 text-rose-600"></i> ECG Reference
+          </button>
+          <button onclick="switchTab('sadmans')" id="tab-btn-sadmans-d" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-amber-600"></i> SADMANS Rules
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- MAIN BODY -->
+    <main class="max-w-7xl mx-auto px-4 py-5 sm:py-6 flex-1 w-full space-y-6">
+
+      <!-- ==================== TAB 1: TRIPLE-TARGET ENGINE ==================== -->
+      <section id="tab-content-calculator" class="space-y-6 mobile-center-wrap">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <!-- INPUT FORM (LEFT 7 COLS) -->
+          <div class="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-5 text-left">
+            <div class="flex items-center justify-between border-b pb-3">
+              <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <i data-lucide="user-check" class="w-4 h-4 text-emerald-600"></i>
+                Patient Profile & NCD Clinical Input (MOH Standard)
+              </h3>
+              <button onclick="resetNcdForm()" class="text-xs text-slate-500 hover:text-rose-600 flex items-center gap-1 active:scale-95 transition">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Clear
+              </button>
+            </div>
+
+            <!-- Demographics & Smoking -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div>
+                <label class="block font-medium text-slate-700 mb-1">Age (Years)</label>
+                <input type="number" id="in-age" value="54" class="w-full px-3 py-2 border rounded-xl" oninput="runNcdTriage()">
+              </div>
+              <div>
+                <label class="block font-medium text-slate-700 mb-1">Gender</label>
+                <select id="in-gender" class="w-full px-3 py-2 border rounded-xl" onchange="runNcdTriage()">
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-medium text-slate-700 mb-1">Smoking Status</label>
+                <select id="in-smoker" class="w-full px-3 py-2 border rounded-xl" onchange="runNcdTriage()">
+                  <option value="no">Non-Smoker</option>
+                  <option value="yes" selected>Current Smoker / Vaper</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-medium text-slate-700 mb-1">Clinical Frailty</label>
+                <select id="in-frail" class="w-full px-3 py-2 border rounded-xl" onchange="runNcdTriage()">
+                  <option value="robust">Robust / Standard Adult</option>
+                  <option value="frail">Frail Elderly / High Hypo Risk</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Blood Pressure & Heart Rate -->
+            <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Hypertension Profile (CPG HTN 2026)</h4>
+              <div class="grid grid-cols-3 gap-3 text-xs">
+                <div>
+                  <label class="block font-medium text-slate-700 mb-1">Systolic BP (mmHg)</label>
+                  <input type="number" id="in-sbp" value="148" class="w-full px-3 py-2 border rounded-xl bg-white" oninput="runNcdTriage()">
+                </div>
+                <div>
+                  <label class="block font-medium text-slate-700 mb-1">Diastolic BP (mmHg)</label>
+                  <input type="number" id="in-dbp" value="92" class="w-full px-3 py-2 border rounded-xl bg-white" oninput="runNcdTriage()">
+                </div>
+                <div>
+                  <label class="block font-medium text-slate-700 mb-1">Resting HR (bpm)</label>
+                  <input type="number" id="in-hr" value="76" class="w-full px-3 py-2 border rounded-xl bg-white" oninput="runNcdTriage()">
+                </div>
+              </div>
+            </div>
+
+            <!-- Diabetes Status & Glycemia -->
+            <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Diabetes Profile (CPG T2DM 6th Ed)</h4>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <label class="block font-medium text-slate-700 mb-1">T2DM Status</label>
+                  <select id="in-dm-status" class="w-full px-3 py-2 border rounded-xl bg-white" onchange="runNcdTriage()">
+                    <option value="yes" selected>Confirmed T2DM</option>
+                    <option value="no">Non-Diabetic</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block font-medium text-slate-700 mb-1">T2DM Duration</label>
+                  <select id="in-dm-duration" class="w-full px-3 py-2 border rounded-xl bg-white" onchange="runNcdTriage()">
+                    <option value="under10">&lt; 10 Years</option>
+                    <option value="over10" selected>&ge; 10 Years</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block font-medium text-slate-700 mb-1">Current HbA1c (%)</label>
+                  <input type="number" id="in-hba1c" value="8.4" step="0.1" class="w-full px-3 py-2 border rounded-xl bg-white" oninput="runNcdTriage()">
+                </div>
+              </div>
+            </div>
+
+            <!-- Lipid Profile -->
+            <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Dyslipidemia Profile (CPG DLP 2023)</h4>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div>
+                  <label class="block font-medium text-slate-700 mb-1">Total Chol (mmol/L)</label>
+                  <input type="number" id="in-tc" value="5.8" step="0.1" class="w-full px-3 py-2 border rounded-xl bg-white" oninput="runNcdTriage()">
+                </div>
+                <div>
+                  <label class="block font-medium text-slate-700 mb-1">LDL-C (mmol/L)</label>
+                  <input type="number" id="in-ldl" value="3.6" step="0.1" class="w-full px-3 py-2 border rounded-xl bg-white" oninput="runNcdTriage()">
+                </div>
+                <div>
+                  <label class="block font-medium text-slate-700 mb-1">HDL-C (mmol/L)</label>
+                  <input type="number" id="in-hdl" value="1.1" step="0.1" class="w-full px-3 py-2 border rounded-xl bg-white" oninput="runNcdTriage()">
+                </div>
+                <div>
+                  <label class="block font-medium text-slate-700 mb-1">Triglycerides (mmol/L)</label>
+                  <input type="number" id="in-tg" value="2.4" step="0.1" class="w-full px-3 py-2 border rounded-xl bg-white" oninput="runNcdTriage()">
+                </div>
+              </div>
+            </div>
+
+            <!-- Renal & Electrolytes -->
+            <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Renal & Organ Damage Markers</h4>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <label class="block font-medium text-slate-700 mb-1">eGFR (mL/min/1.73m²)</label>
+                  <input type="number" id="in-egfr" value="52" class="w-full px-3 py-2 border rounded-xl bg-white" oninput="runNcdTriage()">
+                </div>
+                <div>
+                  <label class="block font-medium text-slate-700 mb-1">Urine Albumin (UACR)</label>
+                  <select id="in-uacr" class="w-full px-3 py-2 border rounded-xl bg-white" onchange="runNcdTriage()">
+                    <option value="a1">A1: &lt; 3.0 mg/mmol (Normal)</option>
+                    <option value="a2" selected>A2: 3.0 – 30.0 mg/mmol (Microalbuminuria)</option>
+                    <option value="a3">A3: &gt; 30.0 mg/mmol (Macroalbuminuria)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block font-medium text-slate-700 mb-1">Serum Potassium (mmol/L)</label>
+                  <input type="number" id="in-k" value="4.6" step="0.1" class="w-full px-3 py-2 border rounded-xl bg-white" oninput="runNcdTriage()">
+                </div>
+              </div>
+            </div>
+
+            <!-- Comorbidities & Major Organ Checks -->
+            <div class="space-y-2 text-xs">
+              <h4 class="font-bold text-slate-800 uppercase tracking-wide">Compelling Organ Comorbidities</h4>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label class="flex items-center gap-2 p-2 bg-slate-50 border rounded-xl hover:bg-slate-100 cursor-pointer">
+                  <input type="checkbox" id="chk-ascvd" class="rounded text-emerald-600" onchange="runNcdTriage()" checked>
+                  <span><b>Established ASCVD:</b> Prior MI, Stent, Stroke, or PAD</span>
+                </label>
+                <label class="flex items-center gap-2 p-2 bg-slate-50 border rounded-xl hover:bg-slate-100 cursor-pointer">
+                  <input type="checkbox" id="chk-recurrent-ascvd" class="rounded text-rose-600" onchange="runNcdTriage()">
+                  <span><b>Recurrent ASCVD:</b> 2nd event within past 2 years</span>
+                </label>
+                <label class="flex items-center gap-2 p-2 bg-slate-50 border rounded-xl hover:bg-slate-100 cursor-pointer">
+                  <input type="checkbox" id="chk-hf" class="rounded text-emerald-600" onchange="runNcdTriage()">
+                  <span><b>Heart Failure:</b> Documented HFrEF or HFpEF</span>
+                </label>
+                <label class="flex items-center gap-2 p-2 bg-slate-50 border rounded-xl hover:bg-slate-100 cursor-pointer">
+                  <input type="checkbox" id="chk-tod" class="rounded text-emerald-600" onchange="runNcdTriage()" checked>
+                  <span><b>Microvascular TOD:</b> Retinopathy / Neuropathy</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Patient Identifier for PDF Export -->
+            <div>
+              <label class="block font-medium text-slate-700 text-xs mb-1">Patient Name / Clinic ID (For Consultation Sheet Export)</label>
+              <input type="text" id="in-patient-name" placeholder="Optional (e.g., Encik Ismail / MRN 98231)" class="w-full px-3 py-2 border rounded-xl text-xs">
+            </div>
+
+          </div>
+
+          <!-- COMPUTED TRIPLE-TARGET RESULT CARD (RIGHT 5 COLS) -->
+          <div class="lg:col-span-5 space-y-4">
+            
+            <div id="ncd-summary-card" class="bg-emerald-50 border-2 border-emerald-600 rounded-2xl p-4 sm:p-5 shadow-sm transition-all duration-300 text-center sm:text-left">
+              <div class="flex flex-col sm:flex-row items-center justify-between gap-2">
+                <span id="risk-tier-badge" class="bg-emerald-700 text-white font-bold text-xs uppercase px-3 py-1.5 rounded-lg shadow-sm">
+                  VERY HIGH CARDIOVASCULAR RISK
+                </span>
+                <span id="cv-tier-desc" class="text-xs font-semibold text-emerald-800">CPG Tier: Very High</span>
+              </div>
+
+              <h3 class="text-base sm:text-lg font-extrabold text-slate-900 mt-3">
+                Unified Triple-Target Prescription
+              </h3>
+              <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+                Aggressive multi-factorial risk reduction to prevent primary/secondary cardiovascular mortality, dialysis progression, and stroke.
+              </p>
+
+              <!-- TRIPLE TARGET DISPLAY TILES -->
+              <div class="mt-4 space-y-2.5 text-xs">
+                
+                <!-- TARGET 1: BP -->
+                <div class="p-3 bg-white/90 dark:bg-slate-800/90 rounded-xl border flex items-center justify-between">
+                  <div class="text-left">
+                    <span class="text-[10px] text-slate-500 font-bold block uppercase">1. Blood Pressure Goal</span>
+                    <span id="goal-bp" class="font-extrabold text-sm text-slate-900">&lt; 130 / 80 mmHg</span>
+                  </div>
+                  <div class="text-right">
+                    <span id="gap-bp" class="text-xs font-bold text-rose-600">Off Target (+18/+12)</span>
+                  </div>
+                </div>
+
+                <!-- TARGET 2: LDL-C -->
+                <div class="p-3 bg-white/90 dark:bg-slate-800/90 rounded-xl border flex items-center justify-between">
+                  <div class="text-left">
+                    <span class="text-[10px] text-slate-500 font-bold block uppercase">2. LDL-Cholesterol Goal</span>
+                    <span id="goal-ldl" class="font-extrabold text-sm text-slate-900">&lt; 1.4 mmol/L (≥50% drop)</span>
+                  </div>
+                  <div class="text-right">
+                    <span id="gap-ldl" class="text-xs font-bold text-rose-600">Off Target (Gap: +2.2)</span>
+                  </div>
+                </div>
+
+                <!-- TARGET 3: HBA1C -->
+                <div class="p-3 bg-white/90 dark:bg-slate-800/90 rounded-xl border flex items-center justify-between">
+                  <div class="text-left">
+                    <span class="text-[10px] text-slate-500 font-bold block uppercase">3. Glycemic Goal (HbA1c)</span>
+                    <span id="goal-hba1c" class="font-extrabold text-sm text-slate-900">6.6 – 7.0 %</span>
+                  </div>
+                  <div class="text-right">
+                    <span id="gap-hba1c" class="text-xs font-bold text-rose-600">Off Target (+1.4%)</span>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- THERAPY ESCALATION & ORGAN PROTECTION CHECKLIST -->
+              <div class="mt-4 pt-4 border-t border-emerald-200/60 text-left">
+                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2.5">
+                  Organ-Protective Pharmacotherapy Recommendations
+                </h4>
+                <ul id="escalation-action-list" class="text-xs text-slate-700 space-y-2.5">
+                  <!-- Populated by JS -->
+                </ul>
+              </div>
+
+              <!-- SICK-DAY CRITICAL ALERT (SADMANS) -->
+              <div id="sadmans-alert-box" class="mt-4 p-3 bg-amber-100 border border-amber-300 rounded-xl text-left text-xs text-amber-900 space-y-1">
+                <div class="font-bold flex items-center gap-1.5 text-amber-950">
+                  <i data-lucide="shield-alert" class="w-4 h-4 text-amber-700 flex-shrink-0"></i>
+                  <span>SADMANS Sick-Day Alert Active</span>
+                </div>
+                <p class="text-[11px] leading-relaxed">
+                  Patient takes organ-protective agents (SGLT2i, Metformin, ACEi/ARB). Instruct patient to <b>temporarily withhold these during acute dehydration, high fever, or vomiting</b> to prevent euglycemic DKA and AKI.
+                </p>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ==================== TAB 2: CPG PATHWAY & FLOWCHART ==================== -->
+      <section id="tab-content-pathway" class="hidden space-y-6 mobile-center-wrap">
+        
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-5 text-left">
+          <div class="border-b pb-3">
+            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="git-branch" class="w-5 h-5 text-blue-600"></i>
+              Unified Malaysian Primary Care Decision Flowchart
+            </h2>
+            <p class="text-xs text-slate-500">Cross-referencing CPG T2DM (6th Ed), CPG HTN (6th Ed, 2026), and CPG Dyslipidemia (6th Ed, 2023)</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            
+            <div class="p-4 bg-slate-50 rounded-xl border space-y-2">
+              <span class="bg-blue-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full uppercase">Step 1</span>
+              <h4 class="font-bold text-sm text-slate-900">Cardiovascular Risk Tiering</h4>
+              <ul class="list-disc pl-4 space-y-1 text-slate-600 text-[11px]">
+                <li><b>Extreme Risk:</b> Established ASCVD with recurrent event (&lt;2y), ASCVD + DM + CKD, or CAD + Familial Hypercholesterolemia.</li>
+                <li><b>Very High Risk:</b> Documented clinical ASCVD, T2DM with microvascular TOD, severe CKD (eGFR &lt;30), or 10-year FRS &gt;20%.</li>
+                <li><b>High Risk:</b> T2DM without TOD but duration &ge;10y or with &ge;1 risk factor, moderate CKD (eGFR 30–59), or severe single risk factor (LDL &ge;4.9, BP &ge;180/110).</li>
+                <li><b>Moderate / Low Risk:</b> Young T2DM (&lt;40y) duration &lt;10y without other risk factors.</li>
+              </ul>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-xl border space-y-2">
+              <span class="bg-emerald-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full uppercase">Step 2</span>
+              <h4 class="font-bold text-sm text-slate-900">Triple-Target Formulation</h4>
+              <ul class="list-disc pl-4 space-y-1 text-slate-600 text-[11px]">
+                <li><b>BP Goal:</b> &lt;130/80 mmHg in all high/very high risk patients; &lt;140/90 in frail elderly. Avoid DBP &lt;60 in IHD.</li>
+                <li><b>LDL-C Goal:</b> &lt;1.0 (Extreme), &lt;1.4 (Very High), &lt;1.8 (High), &lt;2.6 (Moderate). Minimum 50% drop required from baseline.</li>
+                <li><b>HbA1c Goal:</b> &le;6.5% for young/new onset without complications; 6.6–7.0% standard; 7.1–8.0% for frail elderly/severe hypoglycemia history.</li>
+              </ul>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-xl border space-y-2">
+              <span class="bg-amber-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full uppercase">Step 3</span>
+              <h4 class="font-bold text-sm text-slate-900">Therapy Escalation & Protection</h4>
+              <ul class="list-disc pl-4 space-y-1 text-slate-600 text-[11px]">
+                <li><b>ASCVD / HF / CKD:</b> Prioritize SGLT2i and/or GLP-1 RA regardless of baseline HbA1c.</li>
+                <li><b>Hypertension:</b> Start Single-Pill Combination (A+C or A+D). ACEi/ARB is mandatory in microalbuminuria.</li>
+                <li><b>Dyslipidemia:</b> High-intensity statin upfront. Add Ezetimibe 10mg early if not at target at 4–12 weeks.</li>
+              </ul>
+            </div>
+
+          </div>
+
+          <!-- COMPARATIVE DRUG ESCALATION MATRIX -->
+          <div class="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 pt-2">
+            <table class="w-full text-left text-xs border-collapse min-w-[620px]">
+              <thead>
+                <tr class="bg-slate-100 text-slate-700 uppercase tracking-wider border-b">
+                  <th class="p-2.5 font-bold">Comorbidity</th>
+                  <th class="p-2.5 font-bold">First-Line Class</th>
+                  <th class="p-2.5 font-bold">Second-Line Add-on</th>
+                  <th class="p-2.5 font-bold">Key Avoidances / Renal Cut-offs</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y text-slate-700">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-2.5 font-bold text-slate-900">T2DM with Established ASCVD</td>
+                  <td class="p-2.5">Metformin + SGLT2i (Empagliflozin / Dapagliflozin)</td>
+                  <td class="p-2.5">GLP-1 RA (Dulaglutide / Semaglutide)</td>
+                  <td class="p-2.5">Stop Metformin if eGFR &lt;30. Stop SGLT2i if euglycemic DKA risk.</td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="p-2.5 font-bold text-slate-900">T2DM with CKD (eGFR 20–60 or UACR &gt;30)</td>
+                  <td class="p-2.5">SGLT2i (Renal Protection) + ACEi/ARB</td>
+                  <td class="p-2.5">Non-steroidal MRA (Finerenone) or DPP-4i (Linagliptin)</td>
+                  <td class="p-2.5">Linagliptin requires no renal adjustment. Monitor K+ with RAAS blockers.</td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="p-2.5 font-bold text-slate-900">Hypertension with T2DM / CKD</td>
+                  <td class="p-2.5">ACE-Inhibitor or ARB (Mandatory)</td>
+                  <td class="p-2.5">Add Dihydropyridine CCB (Amlodipine) or Indapamide (A+C or A+D)</td>
+                  <td class="p-2.5">Beta-blockers not first-line unless post-MI or Heart Failure present.</td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="p-2.5 font-bold text-slate-900">Very High Risk Dyslipidemia</td>
+                  <td class="p-2.5">High-Intensity Statin (Atorvastatin 40–80 / Rosuvastatin 20–40)</td>
+                  <td class="p-2.5">Add Ezetimibe 10 mg daily</td>
+                  <td class="p-2.5">If TG &ge;5.6, switch focus to Fibrate first to prevent acute pancreatitis.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ==================== TAB 3: LABS & RED FLAGS ==================== -->
+      <section id="tab-content-investigations" class="hidden space-y-6 mobile-center-wrap">
+        
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4 text-left">
+          <div class="flex flex-col sm:flex-row items-center justify-between border-b pb-3 gap-2 text-center sm:text-left">
+            <div>
+              <h2 class="text-base font-bold text-slate-900 flex items-center justify-center sm:justify-start gap-2">
+                <i data-lucide="flask-conical" class="w-5 h-5 text-sky-600"></i>
+                Laboratory Ranges, Red Flags & Clinical Action Matrix
+              </h2>
+              <p class="text-xs text-slate-500">MOH Clinical Practice Guidelines • Action Thresholds & Specialist Referral Triggers</p>
+            </div>
+            <span class="text-xs bg-sky-50 text-sky-700 px-3 py-1 rounded-full font-medium border border-sky-200">Point-of-Care Ready</span>
+          </div>
+
+          <div class="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            <table class="w-full text-left text-xs border-collapse min-w-[620px]">
+              <thead>
+                <tr class="bg-slate-100 text-slate-700 uppercase tracking-wider border-b border-slate-200">
+                  <th class="p-3 font-bold">Investigation</th>
+                  <th class="p-3 font-bold">Malaysian Target Range</th>
+                  <th class="p-3 font-bold text-rose-600">Critical Red Flag Trigger</th>
+                  <th class="p-3 font-bold">Primary Care Action & Escalation</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-slate-700">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3 font-bold text-slate-900">Blood Pressure</td>
+                  <td class="p-3">&lt; 130/80 mmHg (DM/CKD/ASCVD)</td>
+                  <td class="p-3 text-rose-700 font-semibold">
+                    • &ge; 180/110 mmHg (Crisis)<br>
+                    • DBP &lt; 60 mmHg in CAD
+                  </td>
+                  <td class="p-3">
+                    If &ge;180/110: Screen for acute chest pain, neurological deficit, or pulmonary edema. Initiate Single-Pill Combination A+C or A+D. Avoid DBP &lt;60 in IHD.
+                  </td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3 font-bold text-slate-900">LDL-Cholesterol</td>
+                  <td class="p-3">
+                    • Extreme: &lt; 1.0 mmol/L<br>
+                    • Very High: &lt; 1.4 mmol/L<br>
+                    • High: &lt; 1.8 mmol/L
+                  </td>
+                  <td class="p-3 text-rose-700 font-semibold">
+                    • LDL-C &ge; 4.9 mmol/L (Severe / FH)
+                  </td>
+                  <td class="p-3">
+                    High-intensity Statin upfront. Add Ezetimibe 10 mg if target not achieved after 4–12 weeks. Screen first-degree relatives if LDL &ge;4.9.
+                  </td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3 font-bold text-slate-900">Serum Triglycerides</td>
+                  <td class="p-3">&lt; 1.7 mmol/L</td>
+                  <td class="p-3 text-rose-700 font-semibold">
+                    • TG &ge; 5.6 mmol/L (Pancreatitis Risk)
+                  </td>
+                  <td class="p-3">
+                    <b>Prioritize acute pancreatitis prevention:</b> Eliminate refined sugars, sweetened condensed milk, and alcohol. Initiate Fenofibrate 145 mg daily.
+                  </td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3 font-bold text-slate-900">Glycated Hemoglobin (HbA1c)</td>
+                  <td class="p-3">6.6 – 7.0 % (Standard)</td>
+                  <td class="p-3 text-rose-700 font-semibold">
+                    • HbA1c &gt; 10.0 % with weight loss
+                  </td>
+                  <td class="p-3">
+                    Indicates severe insulin deficiency or glucose toxicity. Start basal insulin or dual oral therapy. In frail elderly with severe hypoglycemia, loosen target to 7.1–8.0%.
+                  </td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3 font-bold text-slate-900">eGFR (CKD-EPI)</td>
+                  <td class="p-3">&ge; 60 mL/min/1.73m²</td>
+                  <td class="p-3 text-rose-700 font-semibold">
+                    • eGFR &lt; 30 (CKD 4–5)<br>
+                    • Drop &gt; 25% from baseline
+                  </td>
+                  <td class="p-3">
+                    <b>Discontinue Metformin if eGFR &lt; 30.</b> Maintain SGLT2i down to eGFR 20 for cardiorenal protection. Urgent Nephrology referral.
+                  </td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3 font-bold text-slate-900">Urine Albumin (UACR)</td>
+                  <td class="p-3">&lt; 3.0 mg/mmol</td>
+                  <td class="p-3 text-rose-700 font-semibold">
+                    • Rapid progression to &gt; 30 mg/mmol
+                  </td>
+                  <td class="p-3">
+                    Mandatory titration of ACE-inhibitor or ARB to maximum tolerated dose. Combine with SGLT2 inhibitor to attenuate renal microvascular decline.
+                  </td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3 font-bold text-slate-900">Serum Potassium (K+)</td>
+                  <td class="p-3">3.5 – 5.0 mmol/L</td>
+                  <td class="p-3 text-rose-700 font-semibold">
+                    • K+ &ge; 5.5 mmol/L (Severe &ge; 6.0)<br>
+                    • K+ &lt; 3.0 mmol/L (Hypokalemia)
+                  </td>
+                  <td class="p-3">
+                    <b>If &ge;5.5: STAT ECG.</b> Withhold ACEi, ARBs, and Spironolactone. Restrict high-potassium dietary intake.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ==================== TAB 4: QUICK ECG REFERENCE ==================== -->
+      <section id="tab-content-ecg" class="hidden space-y-6 mobile-center-wrap">
+        
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-5 text-left">
+          <div class="flex flex-col sm:flex-row items-center justify-between border-b pb-3 gap-2 text-center sm:text-left">
+            <div>
+              <h2 class="text-base font-bold text-slate-900 flex items-center justify-center sm:justify-start gap-2">
+                <i data-lucide="activity" class="w-5 h-5 text-rose-600"></i>
+                Bedside ECG Quick Reference for Primary Care NCD Clinics
+              </h2>
+              <p class="text-xs text-slate-500">Key ECG hallmarks in Hypertensive Heart Disease, Diabetic Ischemia, and Electrolyte Derangements</p>
+            </div>
+            <span class="text-xs bg-rose-50 text-rose-700 px-3 py-1 rounded-full font-medium border border-rose-200">Bedside Recognition</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            
+            <!-- LVH IN HYPERTENSION -->
+            <div class="p-4 bg-slate-50 border rounded-xl space-y-2">
+              <h4 class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                <i data-lucide="heart" class="w-4 h-4 text-rose-600"></i> Left Ventricular Hypertrophy (LVH) &amp; Strain
+              </h4>
+              <ul class="list-disc pl-4 space-y-1 text-slate-700 text-[11px]">
+                <li><b>Sokolow-Lyon Voltage:</b> $S\text{ in } V_1 + R\text{ in } V_5 \text{ or } V_6 \ge 35\text{ mm}$ (35 small squares).</li>
+                <li><b>Cornell Voltage:</b> $R\text{ in } aVL + S\text{ in } V_3 > 28\text{ mm}$ (men) or $> 20\text{ mm}$ (women).</li>
+                <li><b>LV Strain Pattern:</b> Asymmetrical, downsloping ST depression and T-wave inversion in lateral leads (I, aVL, V5, V6).</li>
+                <li><b>Clinical Action:</b> Represents established target-organ damage. Mandates strict BP target &lt;130/80 mmHg with ACEi/ARB + CCB.</li>
+              </ul>
+            </div>
+
+            <!-- ISCHEMIA / SILENT CAD -->
+            <div class="p-4 bg-slate-50 border rounded-xl space-y-2">
+              <h4 class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                <i data-lucide="activity" class="w-4 h-4 text-rose-600"></i> Ischemia &amp; Silent MI in Diabetes
+              </h4>
+              <ul class="list-disc pl-4 space-y-1 text-slate-700 text-[11px]">
+                <li><b>Silent Ischemia:</b> Diabetics with autonomic neuropathy often present without chest pain (dyspnea, unexplained sweating).</li>
+                <li><b>Pathological Q-Waves:</b> Width &ge; 0.04s (1 small square) or depth &ge; 25% of the ensuing R wave in &ge;2 contiguous leads.</li>
+                <li><b>Dynamic ST-T Changes:</b> Horizontal/downsloping ST depression &ge; 0.5 mm or deep symmetrical T-wave inversions.</li>
+                <li><b>Clinical Action:</b> Upgrades patient automatically to Very High / Extreme Risk. Initiate DAPT, High-intensity Statin, and urgent Cardiology review.</li>
+              </ul>
+            </div>
+
+            <!-- HYPERKALEMIA -->
+            <div class="p-4 bg-rose-50/70 border border-rose-200 rounded-xl space-y-2">
+              <div class="flex items-center justify-between">
+                <h4 class="font-bold text-sm text-rose-900 flex items-center gap-1.5">
+                  <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-600"></i> Hyperkalemia (K+ &ge; 5.5 – 6.5+ mmol/L)
+                </h4>
+                <span class="bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">Emergency</span>
+              </div>
+              <ul class="list-disc pl-4 space-y-1 text-slate-700 text-[11px]">
+                <li><b>K+ 5.5–6.5:</b> Tall, symmetrical, narrow-based "tented" T waves (most visible in II, III, V2–V4).</li>
+                <li><b>K+ 6.5–7.5:</b> Prolongation of PR interval, flattening and loss of P waves, ST segment depression.</li>
+                <li><b>K+ &gt; 7.5:</b> Marked QRS widening progressing into a classic <b>Sine-Wave pattern</b>, VF, or Asystole.</li>
+                <li><b>GP Action:</b> IV Calcium Gluconate 10% 10 mL over 5 min to stabilize myocardium + IV Dextrose 50% 50 mL with 10U Regular Insulin + Urgent transfer.</li>
+              </ul>
+            </div>
+
+            <!-- HYPOKALEMIA & DRUG QT PROLONGATION -->
+            <div class="p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2">
+              <h4 class="font-bold text-sm text-amber-900 flex items-center gap-1.5">
+                <i data-lucide="zap" class="w-4 h-4 text-amber-600"></i> Hypokalemia &amp; Drug-Induced Long QTc
+              </h4>
+              <ul class="list-disc pl-4 space-y-1 text-slate-700 text-[11px]">
+                <li><b>Hypokalemia (from high-dose loop/thiazide diuretics):</b> T-wave flattening, ST depression, and prominent <b>U waves</b> following T waves.</li>
+                <li><b>Prolonged QTc Interval:</b> QTc &gt; 450 ms in men, &gt; 460 ms in women. QTc &gt; 500 ms carries high risk of Torsades de Pointes.</li>
+                <li><b>Pharmacological Alert:</b> Watch for synergistic QT prolongation if co-prescribing macrolides, fluoroquinolones, antipsychotics, or antiemetics.</li>
+              </ul>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ==================== TAB 5: SADMANS SICK-DAY GUIDE ==================== -->
+      <section id="tab-content-sadmans" class="hidden space-y-6 mobile-center-wrap">
+        
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm max-w-4xl mx-auto space-y-6 text-left">
+          <div class="flex flex-col sm:flex-row items-center justify-between border-b pb-4 gap-3 text-center sm:text-left">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900">SADMANS Sick-Day Management Protocol</h2>
+              <p class="text-xs text-slate-500">Preventing Euglycemic DKA, Lactic Acidosis, and Acute Kidney Injury During Acute Illness</p>
+            </div>
+            <button onclick="printSadmansLeaflet()" class="px-3.5 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-slate-800 shadow-sm active:scale-95 transition">
+              <i data-lucide="printer" class="w-3.5 h-3.5"></i> Print Sick-Day Guide
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs leading-relaxed">
+            
+            <!-- ENGLISH GUIDE -->
+            <div class="border rounded-xl p-4 bg-slate-50 space-y-3">
+              <div class="border-b pb-2">
+                <h3 class="font-bold text-sm text-slate-900">Patient Sick-Day Rules (English)</h3>
+                <p class="text-[11px] text-slate-500">For patients on Diabetes, Blood Pressure, or Kidney medications</p>
+              </div>
+
+              <div class="p-2.5 bg-amber-100 rounded-lg text-amber-950 font-bold">
+                WHEN SICK (Fever, Vomiting, Diarrhea, Inability to drink fluids):
+              </div>
+
+              <div class="space-y-1">
+                <h4 class="font-bold text-rose-800">TEMPORARILY STOP THESE MEDICATIONS ("SADMANS"):</h4>
+                <ul class="list-disc pl-4 space-y-1 text-slate-700">
+                  <li><b>S - Sulfonylureas:</b> Gliclazide, Glimepiride (avoids severe hypoglycemia when not eating).</li>
+                  <li><b>A - ACE-Inhibitors:</b> Perindopril, Ramipril, Enalapril (prevents kidney failure).</li>
+                  <li><b>D - Diuretics:</b> Furosemide, Hydrochlorothiazide, Indapamide (avoids dehydration).</li>
+                  <li><b>M - Metformin:</b> Stop to prevent dangerous Lactic Acidosis.</li>
+                  <li><b>A - ARBs:</b> Losartan, Telmisartan, Valsartan (prevents kidney failure).</li>
+                  <li><b>N - NSAIDs:</b> Ponstan, Ibuprofen, Voltaren, Celebrex (toxic to kidneys when dehydrated).</li>
+                  <li><b>S - SGLT2 Inhibitors:</b> Forxiga (Dapagliflozin), Jardiance (Empagliflozin) - <b>Must stop immediately to avoid Acidosis (Ketoacidosis)</b>.</li>
+                </ul>
+              </div>
+
+              <div class="space-y-1 pt-1">
+                <h4 class="font-bold text-emerald-800">WHAT YOU MUST DO:</h4>
+                <ul class="list-disc pl-4 space-y-1 text-slate-700">
+                  <li>Check your blood sugar every 4 to 6 hours.</li>
+                  <li>Sip plenty of fluids (water, clear soup, ORS) - aim for 1 cup per hour while awake.</li>
+                  <li>Restart your regular medications only 24 to 48 hours after you are fully recovered and eating normally.</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- BAHASA MELAYU GUIDE -->
+            <div class="border rounded-xl p-4 bg-slate-50 space-y-3">
+              <div class="border-b pb-2">
+                <h3 class="font-bold text-sm text-slate-900">Peraturan Hari Sakit (Bahasa Melayu)</h3>
+                <p class="text-[11px] text-slate-500">Untuk pesakit yang mengambil ubat Kencing Manis, Darah Tinggi, atau Buah Pinggang</p>
+              </div>
+
+              <div class="p-2.5 bg-amber-100 rounded-lg text-amber-950 font-bold">
+                KETIKA SAKIT (Demam kuat, Muntah-muntah, Cirit-birit, Tidak lalu makan/minum):
+              </div>
+
+              <div class="space-y-1">
+                <h4 class="font-bold text-rose-800">HENTIKAN SEMENTARA UBAT-UBATAN INI ("SADMANS"):</h4>
+                <ul class="list-disc pl-4 space-y-1 text-slate-700">
+                  <li><b>S - Sulfonilurea:</b> Gliclazide, Glimepiride (elak paras gula jatuh bahaya).</li>
+                  <li><b>A - Perencat ACE:</b> Perindopril, Ramipril, Enalapril (elak buah pinggang rosak).</li>
+                  <li><b>D - Diuretik (Ubat Lawas Kencing):</b> Furosemide, Indapamide (elak kekeringan air).</li>
+                  <li><b>M - Metformin:</b> Hentikan sementara untuk elak keracunan asid laktik.</li>
+                  <li><b>A - ARB:</b> Losartan, Telmisartan, Valsartan (elak kerosakan buah pinggang).</li>
+                  <li><b>N - NSAID (Ubat Tahan Sakit):</b> Ponstan, Voltaren, Ibuprofen (merosakkan buah pinggang).</li>
+                  <li><b>S - Perencat SGLT2:</b> Forxiga, Jardiance - <b>Wajib henti segera bagi mengelakkan komplikasi Ketoasidosis</b>.</li>
+                </ul>
+              </div>
+
+              <div class="space-y-1 pt-1">
+                <h4 class="font-bold text-emerald-800">TINDAKAN YANG PERLU DIAMBIL:</h4>
+                <ul class="list-disc pl-4 space-y-1 text-slate-700">
+                  <li>Periksa paras gula darah setiap 4 hingga 6 jam di rumah.</li>
+                  <li>Minum air kosong atau sup sedikit demi sedikit untuk mengekalkan hidrasi.</li>
+                  <li>Mulakan semula ubat 24 hingga 48 jam selepas anda sembuh sepenuhnya dan boleh makan seperti biasa.</li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- FLOATING RESULTS BAR (MOBILE ONLY) -->
+    <div id="m-result-bar" class="sm:hidden fixed inset-x-0 z-[55] flex justify-center px-3" style="bottom: calc(66px + env(safe-area-inset-bottom, 0px));">
+      <button type="button" onclick="document.getElementById('ncd-summary-card').scrollIntoView({behavior:'smooth',block:'start'})" class="w-full max-w-sm rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-xl flex items-center justify-between bg-emerald-700 active:scale-95 transition-transform backdrop-blur-md">
+        <span id="m-result-text" class="truncate pr-2">Very High Risk • View Targets</span>
+        <span class="text-xs font-semibold bg-white/20 px-2 py-0.5 rounded-full flex-shrink-0">View Plan &rsaquo;</span>
+      </button>
+    </div>
+
+    <!-- DOCKED PHONE BOTTOM NAVIGATION BAR -->
+    <nav id="mobile-nav-bar" class="sm:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800">
+      <button onclick="switchTab('calculator')" id="m-tab-btn-calculator" class="text-emerald-700 font-bold transition">
+        <i data-lucide="sliders"></i>
+        <span>Targets</span>
+      </button>
+      <button onclick="switchTab('pathway')" id="m-tab-btn-pathway" class="text-slate-500 transition">
+        <i data-lucide="git-branch"></i>
+        <span>Pathway</span>
+      </button>
+      <button onclick="switchTab('investigations')" id="m-tab-btn-investigations" class="text-slate-500 transition">
+        <i data-lucide="flask-conical"></i>
+        <span>Labs</span>
+      </button>
+      <button onclick="switchTab('ecg')" id="m-tab-btn-ecg" class="text-slate-500 transition">
+        <i data-lucide="activity"></i>
+        <span>ECG</span>
+      </button>
+      <button onclick="switchTab('sadmans')" id="m-tab-btn-sadmans" class="text-slate-500 transition">
+        <i data-lucide="shield-alert"></i>
+        <span>SADMANS</span>
+      </button>
+    </nav>
+
+    <!-- FOOTER -->
+    <footer class="max-w-7xl mx-auto px-4 pb-6 text-[11px] text-slate-500 leading-relaxed text-center sm:text-left no-print">
+      Malaysian NCD Triple-Target Master • Synthesized from MOH CPG Type 2 Diabetes Mellitus (6th Ed), CPG Hypertension (6th Ed, 2026), and CPG Dyslipidemia (6th Ed, 2023). Designed for clinical decision support in primary healthcare clinics.
+    </footer>
+  </div>
+
+  <!-- ==========================================
+       APPLICATION LOGIC & CALCULATOR ENGINE
+       ========================================== -->
+  <script>
+    function switchTab(tabId) {
+      const tabs = ['calculator', 'pathway', 'investigations', 'ecg', 'sadmans'];
+      tabs.forEach(t => {
+        document.getElementById(`tab-content-${t}`).classList.add('hidden');
+        const btnD = document.getElementById(`tab-btn-${t}-d`);
+        if (btnD) {
+          btnD.classList.remove('bg-white', 'shadow-sm', 'text-slate-900');
+          btnD.classList.add('text-slate-600');
+        }
+        const btnM = document.getElementById(`m-tab-btn-${t}`);
+        if (btnM) {
+          btnM.classList.remove('text-emerald-700', 'font-bold');
+          btnM.classList.add('text-slate-500');
+        }
+      });
+
+      document.getElementById(`tab-content-${tabId}`).classList.remove('hidden');
+      const activeBtnD = document.getElementById(`tab-btn-${tabId}-d`);
+      if (activeBtnD) {
+        activeBtnD.classList.add('bg-white', 'shadow-sm', 'text-slate-900');
+        activeBtnD.classList.remove('text-slate-600');
+      }
+      const activeBtnM = document.getElementById(`m-tab-btn-${tabId}`);
+      if (activeBtnM) {
+        activeBtnM.classList.add('text-emerald-700', 'font-bold');
+        activeBtnM.classList.remove('text-slate-500');
+      }
+
+      const mr = document.getElementById('m-result-bar');
+      if (mr) mr.style.display = (tabId === 'calculator') ? 'flex' : 'none';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    const $ = id => document.getElementById(id);
+    const chk = id => $(id) && $(id).checked;
+
+    function runNcdTriage() {
+      const age = parseFloat($('in-age').value) || 50;
+      const sbp = parseFloat($('in-sbp').value) || 130;
+      const dbp = parseFloat($('in-dbp').value) || 80;
+      const isSmoker = $('in-smoker').value === 'yes';
+      const isFrail = $('in-frail').value === 'frail';
+      const hasDm = $('in-dm-status').value === 'yes';
+      const dmDurationOver10 = $('in-dm-duration').value === 'over10';
+      const hba1c = parseFloat($('in-hba1c').value) || 7.0;
+
+      const tc = parseFloat($('in-tc').value) || 5.0;
+      const ldl = parseFloat($('in-ldl').value) || 3.0;
+      const tg = parseFloat($('in-tg').value) || 1.8;
+
+      const egfr = parseFloat($('in-egfr').value) || 60;
+      const uacr = $('in-uacr').value; // a1, a2, a3
+      const k = parseFloat($('in-k').value) || 4.5;
+
+      const hasAscvd = chk('chk-ascvd');
+      const hasRecurrentAscvd = chk('chk-recurrent-ascvd');
+      const hasHf = chk('chk-hf');
+      const hasTod = chk('chk-tod');
+
+      // 1. RISK STRATIFICATION ALGORITHM (CPG Dyslipidemia 2023 & CPG HTN 2026)
+      let riskTier = "Moderate";
+      let badgeClass = "bg-sky-700";
+      let badgeText = "MODERATE CARDIOVASCULAR RISK";
+
+      const isExtreme = hasAscvd && (hasRecurrentAscvd || (hasDm && egfr < 60) || egfr < 30);
+      const isVeryHigh = hasAscvd || (hasDm && (hasTod || uacr !== 'a1' || egfr < 60)) || egfr < 30;
+      const isHigh = (hasDm && (dmDurationOver10 || isSmoker || sbp >= 140)) || (egfr >= 30 && egfr < 60) || ldl >= 4.9 || sbp >= 180 || tc >= 8.0;
+
+      if (isExtreme) {
+        riskTier = "Extreme";
+        badgeClass = "bg-purple-800";
+        badgeText = "EXTREME CARDIOVASCULAR RISK";
+      } else if (isVeryHigh) {
+        riskTier = "Very High";
+        badgeClass = "bg-rose-700";
+        badgeText = "VERY HIGH CARDIOVASCULAR RISK";
+      } else if (isHigh) {
+        riskTier = "High";
+        badgeClass = "bg-amber-700";
+        badgeText = "HIGH CARDIOVASCULAR RISK";
+      } else if (hasDm) {
+        riskTier = "Moderate";
+        badgeClass = "bg-emerald-700";
+        badgeText = "MODERATE CARDIOVASCULAR RISK";
+      } else {
+        riskTier = "Low";
+        badgeClass = "bg-slate-700";
+        badgeText = "LOW CARDIOVASCULAR RISK";
+      }
+
+      $('risk-tier-badge').className = `${badgeClass} text-white font-bold text-xs uppercase px-3 py-1.5 rounded-lg shadow-sm`;
+      $('risk-tier-badge').innerText = badgeText;
+      $('cv-tier-desc').innerText = `CPG Risk Category: ${riskTier} Risk`;
+      $('m-result-text').innerText = `${riskTier} Risk • View Targets`;
+
+      // 2. TARGET CALCULATION & GAP ANALYSIS
+      // Blood Pressure Target
+      let targetSbp = 130;
+      let targetDbp = 80;
+      if (isFrail || (age >= 65 && !hasDm && !hasAscvd)) {
+        targetSbp = 140;
+        targetDbp = 90;
+      }
+      $('goal-bp').innerText = `< ${targetSbp} / ${targetDbp} mmHg`;
+
+      if (sbp > targetSbp || dbp > targetDbp) {
+        const gapSbp = sbp - targetSbp;
+        const gapDbp = dbp - targetDbp;
+        $('gap-bp').innerText = `Off Target (+${gapSbp > 0 ? gapSbp : 0}/+${gapDbp > 0 ? gapDbp : 0})`;
+        $('gap-bp').className = "text-xs font-bold text-rose-600";
+      } else {
+        $('gap-bp').innerText = "At Target ✓";
+        $('gap-bp').className = "text-xs font-bold text-emerald-600";
+      }
+
+      // LDL-C Target
+      let targetLdl = 2.6;
+      let ldlDesc = "< 2.6 mmol/L";
+      if (riskTier === "Extreme") { targetLdl = 1.0; ldlDesc = "< 1.0 mmol/L"; }
+      else if (riskTier === "Very High") { targetLdl = 1.4; ldlDesc = "< 1.4 mmol/L (≥50% drop)"; }
+      else if (riskTier === "High") { targetLdl = 1.8; ldlDesc = "< 1.8 mmol/L (≥50% drop)"; }
+      else if (riskTier === "Low") { targetLdl = 3.0; ldlDesc = "< 3.0 mmol/L"; }
+      $('goal-ldl').innerText = ldlDesc;
+
+      if (ldl > targetLdl) {
+        const gapLdlVal = (ldl - targetLdl).toFixed(1);
+        $('gap-ldl').innerText = `Off Target (Gap: +${gapLdlVal})`;
+        $('gap-ldl').className = "text-xs font-bold text-rose-600";
+      } else {
+        $('gap-ldl').innerText = "At Target ✓";
+        $('gap-ldl').className = "text-xs font-bold text-emerald-600";
+      }
+
+      // HbA1c Target
+      let targetHbA1c = 7.0;
+      let hba1cDesc = "6.6 – 7.0 %";
+      if (isFrail || (hasAscvd && age >= 65)) {
+        targetHbA1c = 8.0;
+        hba1cDesc = "7.1 – 8.0 % (Frail/CVD)";
+      } else if (!hasAscvd && age < 45 && !dmDurationOver10) {
+        targetHbA1c = 6.5;
+        hba1cDesc = "≤ 6.5 % (Stringent)";
+      }
+      $('goal-hba1c').innerText = hba1cDesc;
+
+      if (hasDm) {
+        if (hba1c > targetHbA1c) {
+          const gapA1c = (hba1c - targetHbA1c).toFixed(1);
+          $('gap-hba1c').innerText = `Off Target (+${gapA1c}%)`;
+          $('gap-hba1c').className = "text-xs font-bold text-rose-600";
+        } else {
+          $('gap-hba1c').innerText = "At Target ✓";
+          $('gap-hba1c').className = "text-xs font-bold text-emerald-600";
+        }
+      } else {
+        $('gap-hba1c').innerText = "Non-Diabetic";
+        $('gap-hba1c').className = "text-xs font-bold text-slate-500";
+      }
+
+      // 3. THERAPY RECOMMENDATIONS GENERATION
+      let actions = [];
+
+      // PANCREATITIS FIRST ALERT
+      if (tg >= 5.6) {
+        actions.push(`<li class="flex items-start gap-2 text-rose-800 font-bold bg-rose-50 p-2 rounded-lg border border-rose-200"><i data-lucide="alert-octagon" class="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5"></i><span><b>PRIORITIZE PANCREATITIS PREVENTION:</b> Fasting TG is ${tg} mmol/L (≥5.6). Stop sugars, initiate Fenofibrate 145 mg daily before addressing LDL target.</span></li>`);
+      }
+
+      // ORGAN PROTECTION IN DIABETES
+      if (hasDm) {
+        if (hasAscvd || hasHf || egfr < 60 || uacr !== 'a1') {
+          let indics = [];
+          if (hasAscvd) indics.push("ASCVD");
+          if (hasHf) indics.push("Heart Failure");
+          if (egfr < 60 || uacr !== 'a1') indics.push("CKD/Albuminuria");
+          actions.push(`<li class="flex items-start gap-2 text-emerald-950 font-bold"><i data-lucide="shield-check" class="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5"></i><span><b>Organ-Protective Antidiabetic:</b> SGLT2 inhibitor (Empagliflozin 10-25mg or Dapagliflozin 10mg) or GLP-1 RA indicated for ${indics.join(', ')} regardless of baseline HbA1c.</span></li>`);
+        }
+        if (egfr < 30) {
+          actions.push(`<li class="flex items-start gap-2 text-rose-700 font-bold"><i data-lucide="ban" class="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5"></i><span><b>Renal Safety Alert:</b> eGFR is ${egfr} mL/min (&lt;30). Metformin is strictly contraindicated (Lactic Acidosis). Switch to Linagliptin 5mg or Insulin.</span></li>`);
+        } else if (egfr < 45) {
+          actions.push(`<li class="flex items-start gap-2 text-amber-800"><i data-lucide="info" class="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5"></i><span><b>Metformin Dose Cap:</b> eGFR is ${egfr} mL/min (30–44). Limit maximum Metformin dose to 1,000 mg/day.</span></li>`);
+        }
+      }
+
+      // HYPERTENSION PHARMACOTHERAPY
+      if (sbp >= 140 || dbp >= 90 || sbp > targetSbp) {
+        if (hasDm || uacr !== 'a1' || egfr < 60) {
+          actions.push(`<li class="flex items-start gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5"></i><span><b>Hypertension 1st-Line:</b> ACE-Inhibitor (Perindopril 4-8mg) or ARB (Telmisartan 40-80mg / Losartan 50-100mg) is mandatory for renal/cardioprotection.</span></li>`);
+        }
+        if (sbp >= 150 || (sbp - targetSbp) >= 20) {
+          actions.push(`<li class="flex items-start gap-2 font-semibold"><i data-lucide="plus-circle" class="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"></i><span><b>Single-Pill Combination (SPC):</b> Initiate A+C (ACEi/ARB + Amlodipine 5mg) or A+D (ACEi/ARB + Indapamide 1.5mg SR) upfront for synergism.</span></li>`);
+        }
+      }
+
+      // DYSLIPIDEMIA PHARMACOTHERAPY
+      if (riskTier === "Extreme" || riskTier === "Very High" || riskTier === "High") {
+        actions.push(`<li class="flex items-start gap-2 text-slate-800 font-bold"><i data-lucide="pill" class="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5"></i><span><b>High-Intensity Statin Upfront:</b> Atorvastatin 40–80 mg or Rosuvastatin 20–40 mg daily.</span></li>`);
+        if (ldl > targetLdl) {
+          actions.push(`<li class="flex items-start gap-2 text-slate-700"><i data-lucide="arrow-up-right" class="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"></i><span><b>Add Ezetimibe 10 mg:</b> If LDL-C remains &ge;${targetLdl} mmol/L at 4–12 weeks review, add Ezetimibe upfront before considering triple therapy.</span></li>`);
+        }
+      }
+
+      // POTASSIUM RED FLAG
+      if (k >= 5.5) {
+        actions.push(`<li class="flex items-start gap-2 text-rose-800 font-bold bg-rose-50 p-2 rounded-lg border border-rose-200"><i data-lucide="alert-triangle" class="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5"></i><span><b>HYPERKALEMIA RED FLAG:</b> Serum K+ is ${k} mmol/L (&ge;5.5). Stat ECG required. Withhold ACEi/ARB and Spironolactone immediately.</span></li>`);
+      }
+
+      $('escalation-action-list').innerHTML = actions.join('');
+      lucide.createIcons();
+    }
+
+    function resetNcdForm() {
+      $('in-age').value = 54;
+      $('in-gender').value = 'male';
+      $('in-smoker').value = 'yes';
+      $('in-frail').value = 'robust';
+      $('in-sbp').value = 148;
+      $('in-dbp').value = 92;
+      $('in-hr').value = 76;
+      $('in-dm-status').value = 'yes';
+      $('in-dm-duration').value = 'over10';
+      $('in-hba1c').value = 8.4;
+      $('in-tc').value = 5.8;
+      $('in-ldl').value = 3.6;
+      $('in-hdl').value = 1.1;
+      $('in-tg').value = 2.4;
+      $('in-egfr').value = 52;
+      $('in-uacr').value = 'a2';
+      $('in-k').value = 4.6;
+      $('chk-ascvd').checked = true;
+      $('chk-recurrent-ascvd').checked = false;
+      $('chk-hf').checked = false;
+      $('chk-tod').checked = true;
+      $('in-patient-name').value = '';
+      runNcdTriage();
+    }
+
+    function toggleTheme() {
+      const dark = !document.documentElement.classList.contains('dark');
+      document.documentElement.classList.toggle('dark', dark);
+      try { localStorage.setItem('ncd-theme', dark ? 'dark' : 'light'); } catch(e){}
+      syncThemeBtn();
+    }
+    function syncThemeBtn() {
+      const dark = document.documentElement.classList.contains('dark');
+      $('theme-btn').innerHTML = `<i data-lucide="${dark ? 'sun' : 'moon'}" class="w-4 h-4"></i> <span>${dark ? 'Light' : 'Dark'}</span>`;
+      lucide.createIcons();
+    }
+
+    function printSadmansLeaflet() {
+      document.body.classList.add('print-sadmans');
+      window.print();
+      setTimeout(() => document.body.classList.remove('print-sadmans'), 500);
+    }
+
+    function saveNcdPdf() {
+      if (!window.jspdf) { window.print(); return; }
+      const doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+      let y = 50; const L = 48, W = 499;
+
+      const clean = t => String(t).replace(/≥/g, '>=').replace(/≤/g, '<=').replace(/[–—]/g, '-').replace(/[•●]/g, '-').replace(/\s+/g, ' ').trim();
+      const addH = (txt, size=12) => {
+        y += 8; doc.setFont('helvetica', 'bold'); doc.setFontSize(size); doc.setTextColor(5, 150, 105);
+        doc.text(clean(txt), L, y); y += size + 4;
+      };
+      const addP = (txt, bold=false) => {
+        doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(10); doc.setTextColor(30, 41, 59);
+        doc.splitTextToSize(clean(txt), W).forEach(l => { doc.text(l, L, y); y += 14; });
+        y += 2;
+      };
+
+      addH('Malaysian NCD Triple-Target Consultation Summary', 16);
+      addP(`MOH Malaysia CPG Guidelines (T2DM, HTN 2026, Dyslipidemia 2023) • Date: ${new Date().toLocaleDateString('en-GB')}`, true);
+      addP(`Patient: ${$('in-patient-name').value.trim() || 'Adult Patient'} | Age: ${$('in-age').value}y | Gender: ${$('in-gender').value}`, true);
+
+      addH('CARDIOVASCULAR RISK & TRIPLE TARGETS');
+      addP(`Risk Tier: ${$('risk-tier-badge').innerText}`);
+      addP(`Blood Pressure Goal: ${$('goal-bp').innerText} (Current: ${$('in-sbp').value}/${$('in-dbp').value} mmHg)`);
+      addP(`LDL-Cholesterol Goal: ${$('goal-ldl').innerText} (Current: ${$('in-ldl').value} mmol/L)`);
+      addP(`Glycemic Goal: ${$('goal-hba1c').innerText} (Current HbA1c: ${$('in-hba1c').value}%)`);
+
+      addH('ORGAN-PROTECTIVE RECOMMENDATIONS');
+      document.querySelectorAll('#escalation-action-list li').forEach(el => {
+        addP('- ' + el.innerText);
+      });
+
+      addH('SADMANS SICK-DAY PRECAUTION');
+      addP('Withhold SGLT2i, Metformin, ACEi/ARBs, and Diuretics during dehydration, high fever, or vomiting to prevent euglycemic DKA and AKI.', true);
+
+      doc.save(`NCD-TripleTarget-${new Date().toISOString().slice(0,10)}.pdf`);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      syncThemeBtn();
+      lucide.createIcons();
+      runNcdTriage();
+    });
+  </script>
+</body>
+</html>

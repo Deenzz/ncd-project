@@ -1,0 +1,6 @@
+{
+  "name": "Malaysian NCD Triple-Target Master",
+  "description": "Primary care clinical decision support suite synthesizing Malaysian MOH CPGs for Type 2 Diabetes Mellitus, Hypertension (2026), and Dyslipidemia (2023) with internal AI clinical reasoning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
